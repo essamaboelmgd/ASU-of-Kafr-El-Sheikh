@@ -46,18 +46,6 @@ CREATE TABLE `admin_accs` (
   `admin_pass` varchar(225) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `admin_accs`
---
-
-INSERT INTO `admin_accs` (`id`, `admin_users`, `admin_pass`) VALUES
-(1001, 'scientific', '#ScientificAdminASU2025#'),
-(2001, 'art', '#ArtAdminASU2025#'),
-(3001, 'athletic', '#AthleticAdminASU2025#'),
-(4001, 'social', '#SocialAdminASU2025#'),
-(5001, 'voyager', '#VoyagerAdminASU2025#'),
-(6001, 'cultural', '#CulturalAdminASU2025#');
-
 -- --------------------------------------------------------
 
 --
