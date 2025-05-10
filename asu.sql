@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 04, 2025 at 12:53 AM
+-- Generation Time: May 10, 2025 at 07:21 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -61,21 +61,27 @@ INSERT INTO `admin_accs` (`id`, `admin_users`, `admin_pass`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `contact_messages`
+--
+
+CREATE TABLE `contact_messages` (
+  `id` int(11) NOT NULL,
+  `phone_number` varchar(20) NOT NULL,
+  `message` text NOT NULL,
+  `created_at` datetime NOT NULL,
+  `ip_address` varchar(45) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `daily_visitors`
 --
 
 CREATE TABLE `daily_visitors` (
-  `id` int(11) NOT NULL,
   `visit_date` date NOT NULL,
-  `visitor_count` int(11) NOT NULL
+  `visitor_count` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `daily_visitors`
---
-
-INSERT INTO `daily_visitors` (`id`, `visit_date`, `visitor_count`) VALUES
-(49, '2025-03-03', 1);
 
 -- --------------------------------------------------------
 
@@ -96,7 +102,22 @@ CREATE TABLE `events` (
 --
 
 INSERT INTO `events` (`id`, `title`, `img_url`, `event_type`, `expiry_time`) VALUES
-(5, 'AI e-sport', 'event-img/form-2.jpg', 'athletic', '2025-03-06 01:25:00');
+(11, 'test event', 'event-img/images (19).jpeg', 'art', '2025-05-12 19:40:00');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `event_users`
+--
+
+CREATE TABLE `event_users` (
+  `id` int(11) NOT NULL,
+  `event_id` int(11) NOT NULL,
+  `user_name` varchar(255) NOT NULL,
+  `grade` enum('First','Second','Third','Fourth') NOT NULL,
+  `created_at` datetime NOT NULL,
+  `ip_address` varchar(45) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -106,6 +127,7 @@ INSERT INTO `events` (`id`, `title`, `img_url`, `event_type`, `expiry_time`) VAL
 
 CREATE TABLE `form_fields` (
   `id` int(11) NOT NULL,
+  `event_id` int(11) NOT NULL,
   `field_type` enum('label','checkbox','paragraph','text','radio') NOT NULL,
   `field_label` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -114,16 +136,26 @@ CREATE TABLE `form_fields` (
 -- Dumping data for table `form_fields`
 --
 
-INSERT INTO `form_fields` (`id`, `field_type`, `field_label`) VALUES
-(75, 'paragraph', ''),
-(76, 'label', ''),
-(77, 'checkbox', ''),
-(78, 'radio', ''),
-(79, 'checkbox', ''),
-(80, 'checkbox', ''),
-(81, 'checkbox', ''),
-(82, 'paragraph', ''),
-(83, 'paragraph', '');
+INSERT INTO `form_fields` (`id`, `event_id`, `field_type`, `field_label`) VALUES
+(155, 11, 'paragraph', 'Test Event'),
+(156, 11, 'paragraph', 'ازيكم يابشمهندسين دا فورم تجريبي عشان نشوف الفورمات اشتغلت تمام واللا لسا'),
+(157, 11, 'paragraph', 'تقييمك للمنصه : '),
+(158, 11, 'radio', 'ممتازه'),
+(159, 11, 'radio', 'جيده'),
+(160, 11, 'radio', 'مقبوله'),
+(161, 11, 'radio', 'سيئه'),
+(162, 11, 'radio', 'سيئه جدا');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `total_visits`
+--
+
+CREATE TABLE `total_visits` (
+  `visit_date` date NOT NULL,
+  `visit_count` int(11) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -133,6 +165,7 @@ INSERT INTO `form_fields` (`id`, `field_type`, `field_label`) VALUES
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
+  `event_id` int(11) NOT NULL,
   `ip_address` varchar(50) NOT NULL,
   `created_at` datetime NOT NULL,
   `fields_data` text NOT NULL
@@ -142,8 +175,8 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `ip_address`, `created_at`, `fields_data`) VALUES
-(8, '127.0.0.1', '2025-03-03 08:50:38', '[\"field_65: Esssam\",\"field_66: 01062772291\",\"radio_68: 1\",\"checkbox_73: pes\"]');
+INSERT INTO `users` (`id`, `event_id`, `ip_address`, `created_at`, `fields_data`) VALUES
+(12, 0, '127.0.0.1', '2025-05-10 18:56:19', '[\"radio_158: ممتازه\"]');
 
 -- --------------------------------------------------------
 
@@ -153,16 +186,10 @@ INSERT INTO `users` (`id`, `ip_address`, `created_at`, `fields_data`) VALUES
 
 CREATE TABLE `visitors` (
   `id` int(11) NOT NULL,
-  `ip_address` varchar(50) NOT NULL,
-  `visit_date` date NOT NULL
+  `ip_address` varchar(45) NOT NULL,
+  `visit_date` date NOT NULL,
+  `visit_time` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `visitors`
---
-
-INSERT INTO `visitors` (`id`, `ip_address`, `visit_date`) VALUES
-(58, '127.0.0.1', '2025-03-03');
 
 -- --------------------------------------------------------
 
@@ -171,17 +198,9 @@ INSERT INTO `visitors` (`id`, `ip_address`, `visit_date`) VALUES
 --
 
 CREATE TABLE `yearly_visitors` (
-  `id` int(11) NOT NULL,
-  `visit_year` int(11) NOT NULL,
-  `visitor_count` int(11) NOT NULL
+  `visit_year` year(4) NOT NULL,
+  `visitor_count` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `yearly_visitors`
---
-
-INSERT INTO `yearly_visitors` (`id`, `visit_year`, `visitor_count`) VALUES
-(49, 2025, 1);
 
 --
 -- Indexes for dumped tables
@@ -200,10 +219,16 @@ ALTER TABLE `admin_accs`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `contact_messages`
+--
+ALTER TABLE `contact_messages`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `daily_visitors`
 --
 ALTER TABLE `daily_visitors`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`visit_date`);
 
 --
 -- Indexes for table `events`
@@ -212,10 +237,22 @@ ALTER TABLE `events`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `event_users`
+--
+ALTER TABLE `event_users`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `form_fields`
 --
 ALTER TABLE `form_fields`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `total_visits`
+--
+ALTER TABLE `total_visits`
+  ADD PRIMARY KEY (`visit_date`);
 
 --
 -- Indexes for table `users`
@@ -233,7 +270,7 @@ ALTER TABLE `visitors`
 -- Indexes for table `yearly_visitors`
 --
 ALTER TABLE `yearly_visitors`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`visit_year`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -252,40 +289,40 @@ ALTER TABLE `admin_accs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6003;
 
 --
--- AUTO_INCREMENT for table `daily_visitors`
+-- AUTO_INCREMENT for table `contact_messages`
 --
-ALTER TABLE `daily_visitors`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+ALTER TABLE `contact_messages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `events`
 --
 ALTER TABLE `events`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT for table `event_users`
+--
+ALTER TABLE `event_users`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `form_fields`
 --
 ALTER TABLE `form_fields`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=84;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=163;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `visitors`
 --
 ALTER TABLE `visitors`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
-
---
--- AUTO_INCREMENT for table `yearly_visitors`
---
-ALTER TABLE `yearly_visitors`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

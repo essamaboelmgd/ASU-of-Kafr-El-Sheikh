@@ -2,41 +2,73 @@
 // Connect to the database
 include('conn.php');
 
-// الحصول على عنوان IP للزائر والتاريخ
+// بدء الجلسة
+session_start();
+
+// الحصول على عنوان IP للزائر والتاريخ والوقت
 $ip_address = $_SERVER['REMOTE_ADDR'];
 $today = date("Y-m-d");
 $today_hour = date("Y-m-d H:i:s");
 $current_year = date("Y");
 
-// التحقق مما إذا كان الزائر قد تم تسجيله اليوم
-$sql_check = "SELECT * FROM visitors WHERE ip_address = '$ip_address' AND visit_date = '$today'";
-$result = $conn->query($sql_check);
+// التحقق مما إذا كانت هذه زيارة جديدة في الجلسة الحالية
+if (!isset($_SESSION['visitor_tracked'])) {
+    // تسجيل زيارة جديدة في جدول visitors
+    $sql_insert = "INSERT INTO visitors (ip_address, visit_date, visit_time) VALUES (?, ?, ?)";
+    $stmt = $conn->prepare($sql_insert);
+    $stmt->bind_param("sss", $ip_address, $today, $today_hour);
+    $stmt->execute();
+    $stmt->close();
 
-if ($result->num_rows == 0) {
-    // إذا لم يكن الزائر مسجلاً اليوم، قم بإضافته
-    $sql_insert = "INSERT INTO visitors (ip_address, visit_date) VALUES ('$ip_address', '$today')";
-    $conn->query($sql_insert);
+    // التحقق مما إذا كان الزائر فريدًا اليوم (IP + تاريخ)
+    $sql_check_unique = "SELECT COUNT(*) as count FROM visitors WHERE ip_address = ? AND visit_date = ?";
+    $stmt = $conn->prepare($sql_check_unique);
+    $stmt->bind_param("ss", $ip_address, $today);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $is_unique_visitor = ($row['count'] == 1); // إذا كانت المرة الأولى اليوم
+    $stmt->close();
 
-    // تحديث عدد الزوار اليومي
-    $sql_update_daily = "INSERT INTO daily_visitors (visit_date, visitor_count) 
-                         VALUES ('$today', 1) 
-                         ON DUPLICATE KEY UPDATE visitor_count = visitor_count + 1";
-    $conn->query($sql_update_daily);
+    if ($is_unique_visitor) {
+        // تحديث عدد الزوار الفريدين اليومي
+        $sql_update_daily = "INSERT INTO daily_visitors (visit_date, visitor_count) 
+                            VALUES (?, 1) 
+                            ON DUPLICATE KEY UPDATE visitor_count = visitor_count + 1";
+        $stmt = $conn->prepare($sql_update_daily);
+        $stmt->bind_param("s", $today);
+        $stmt->execute();
+        $stmt->close();
 
-    // تحديث عدد الزوار السنوي
-    $sql_update_yearly = "INSERT INTO yearly_visitors (visit_year, visitor_count) 
-                          VALUES ('$current_year', 1) 
-                          ON DUPLICATE KEY UPDATE visitor_count = visitor_count + 1";
-	$conn->query($sql_update_yearly);
+        // تحديث عدد الزوار الفريدين السنوي
+        $sql_update_yearly = "INSERT INTO yearly_visitors (visit_year, visitor_count) 
+                             VALUES (?, 1) 
+                             ON DUPLICATE KEY UPDATE visitor_count = visitor_count + 1";
+        $stmt = $conn->prepare($sql_update_yearly);
+        $stmt->bind_param("s", $current_year);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    // تحديث عدد الزيارات الكلي (حتى لو مش زائر فريد)
+    $sql_update_total_visits = "INSERT INTO total_visits (visit_date, visit_count) 
+                           VALUES (?, 1) 
+                           ON DUPLICATE KEY UPDATE visit_count = visit_count + 1";
+    $stmt = $conn->prepare($sql_update_total_visits);
+    $stmt->bind_param("s", $today);
+    $stmt->execute();
+    $stmt->close();
+
+    // تعيين متغير الجلسة لمنع تكرار التسجيل في نفس الجلسة
+    $_SESSION['visitor_tracked'] = true;
 }
 
+// باقي الكود (جلب الأحداث والـ about)
 $sql_1 = "SELECT * FROM events";
 $result_1 = $conn->query($sql_1);
 
 $sql_2 = "SELECT * FROM about";
 $result_2 = $conn->query($sql_2);
-
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -74,6 +106,114 @@ $result_2 = $conn->query($sql_2);
 	<link rel="stylesheet" type="text/css" href="css/util.css">
 	<link rel="stylesheet" type="text/css" href="css/main.css">
 <!--===============================================================================================-->
+	<!-- Bootstrap 5 CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+	<!-- Custom Modal CSS -->
+	<style>
+		.event-login-modal .modal-content {
+			border-radius: 15px;
+			border: none;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+			background: linear-gradient(145deg, #ffffff, #f8f9fa);
+		}
+		.event-login-modal .modal-header {
+			border-bottom: none;
+			padding: 1.5rem 2rem;
+			background: #007bff;
+			color: white;
+			border-top-left-radius: 15px;
+			border-top-right-radius: 15px;
+		}
+		.event-login-modal .modal-title {
+			font-weight: 700;
+			font-size: 1.5rem;
+		}
+		.event-login-modal .btn-close {
+			filter: invert(1);
+		}
+		.event-login-modal .modal-body {
+			padding: 2rem;
+		}
+		.event-login-modal .form-control {
+			border-radius: 8px;
+			border: 1px solid #ced4da;
+			padding: 0.75rem;
+			transition: border-color 0.3s, box-shadow 0.3s;
+		}
+		.event-login-modal .form-control:focus {
+			border-color: #007bff;
+			box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+		}
+		.event-login-modal .btn-primary {
+			border-radius: 8px;
+			padding: 0.75rem;
+			font-weight: 600;
+			background: #007bff;
+			border: none;
+			transition: background 0.3s, transform 0.2s;
+		}
+		.event-login-modal .btn-primary:hover {
+			background: #0056b3;
+			transform: translateY(-2px);
+		}
+		.event-login-modal .form-label {
+			font-weight: 500;
+			color: #343a40;
+		}
+		@media (max-width: 576px) {
+			.event-login-modal .modal-dialog {
+				margin: 1rem;
+			}
+			.event-login-modal .modal-body {
+				padding: 1.5rem;
+			}
+		}
+		/* أساسيات التنسيق المتجاوب */
+		.responsive-banner {
+			position: relative;
+			width: 100%;
+			overflow: hidden;
+			margin: 0; /* إزالة أي هوامش */
+			padding: 0; /* إزالة أي حشوات */
+		}
+
+		.banner-image {
+			width: 100%;
+			height: 0;
+			padding-bottom: 40%; /* يمكن تعديل هذه النسبة */
+			background-size: cover;
+			background-position: center;
+			background-repeat: no-repeat;
+			display: block; /* تأكد من أن العنصر display block */
+		}
+
+		/* تعديلات لكل حجم شاشة */
+		@media (max-width: 1200px) {
+		.banner-image {
+			padding-bottom: 50%;
+		}
+		}
+
+		@media (max-width: 992px) {
+		.banner-image {
+			padding-bottom: 60%;
+		}
+		}
+
+		/* نسب أكثر ملاءمة للشاشات الصغيرة */
+		@media (max-width: 768px) {
+		.banner-image {
+			padding-bottom: 75%; /* زيادة النسبة للشاشات الصغيرة */
+		}
+		}
+
+		@media (max-width: 576px) {
+		.banner-image {
+			padding-bottom: 100%; /* مربع كامل للهواتف */
+		}
+		}
+	</style>
+	
 </head>
 <body class="animsition">
 	
@@ -128,7 +268,6 @@ $result_2 = $conn->query($sql_2);
 			</div>
 		</div>
 
-
 		<!-- Menu Mobile -->
 		<div class="menu-mobile">
 			<ul class="main-menu-m">
@@ -149,32 +288,19 @@ $result_2 = $conn->query($sql_2);
 				</li>
 			</ul>
 		</div>
-
-		<!-- Modal Search -->
-		<div class="modal-search-header flex-c-m trans-04 js-hide-modal-search">
-			<div class="container-search-header">
-				<button class="flex-c-m btn-hide-modal-search trans-04 js-hide-modal-search">
-					<img src="images/icons/icon-close2.png" alt="CLOSE">
-				</button>
-
-				<form class="wrap-search-header flex-w p-l-15">
-					<button class="flex-c-m trans-04">
-						<i class="zmdi zmdi-search"></i>
-					</button>
-					<input class="plh3" type="text" name="search" placeholder="Search...">
-				</form>
-			</div>
-		</div>
 	</header>
+
 	<!-- Section -->
 	<section class="section-slide" id="section">
 		<div class="wrap-slick1">
 			<div class="slick1">
-				<div class="item-slick1" style="background-image: url(images/section-1.jpg);">
-				</div>
+				<div class="item-slick1 responsive-banner">
+					<div class="banner-image" style="background-image: url(images/section-1.jpg);"></div>
+					</div>
 			</div>
 		</div>
 	</section>
+
 	<!-- Events Form -->
 	<section class="bg0 p-t-23 p-b-140" id="events">
 		<div class="container">
@@ -224,16 +350,16 @@ $result_2 = $conn->query($sql_2);
 							<div class="col-sm-6 col-md-4 col-lg-3 p-b-35 isotope-item ' . htmlspecialchars($row["event_type"]) . '">
 								<div class="block2">
 									<div class="block2-pic hov-img0">
-										<img src="' . htmlspecialchars($row["img_url"]) . '" alt="IMG-PRODUCT">';
+										<img src="' . htmlspecialchars($row["img_url"]) . '" alt="IMG-EVENT">';
 										if (!$is_expired) {
-											echo '<a href="#" class="block2-btn flex-c-m stext-103 cl2 size-102 bor2 hov-btn1 p-lr-15 trans-04 js-show-modal1">
+											echo '<a href="#" class="block2-btn flex-c-m stext-103 cl2 size-102 bor2 hov-btn1 p-lr-15 trans-04" data-bs-toggle="modal" data-bs-target="#eventLoginModal" data-event-id="' . htmlspecialchars($row["id"]) . '">
 													Enter Event
-												</a>';
+												  </a>';
 										} else {
 											echo '<button class="block2-btn flex-c-m stext-103 cl2 size-102 bor2 disabled p-lr-15">
 													Event Ended
-												</button>';
-										};
+												  </button>';
+										}
 									echo'
 									</div>
 									<div class="block2-txt flex-w flex-t p-t-14">
@@ -263,6 +389,7 @@ $result_2 = $conn->query($sql_2);
 			</div>
 		</div>
 	</section>
+
 	<!-- about -->
 	<section class="section-slide" id="about">
 		<div class="wrap-slick1">
@@ -305,21 +432,18 @@ $result_2 = $conn->query($sql_2);
 	<!-- start contact-->
 	<section class="bg0 p-t-104 p-b-116" id="contact">
 		<div class="container">
-			<form>
+			<form id="contact-form">
 				<h4 class="mtext-105 cl2 txt-center p-b-30">
 					Send Us A Message
 				</h4>
-
 				<div class="bor8 m-b-20 how-pos4-parent">
 					<input class="stext-111 plh3 size-116 p-l-62 p-r-30" type="tel" name="phone_num" id="phone_num" minlength="11" maxlength="11" placeholder="Your Number" required>
 					<img class="how-pos4 pointer-none" src="images/icons/icon-email.png" alt="ICON">
 				</div>
-
 				<div class="bor8 m-b-30">
 					<textarea class="stext-111 plh3 size-120 p-lr-28 p-tb-25" name="msg" placeholder="How Can We Help?" required></textarea>
 				</div>
-
-				<button class="flex-c-m stext-101 cl0 size-121 bg3 bor1 hov-btn3 p-lr-15 trans-04 pointer">
+				<button type="submit" class="flex-c-m stext-101 cl0 size-121 bg3 bor1 hov-btn3 p-lr-15 trans-04 pointer">
 					Submit
 				</button>
 			</form>
@@ -332,35 +456,12 @@ $result_2 = $conn->query($sql_2);
 		<div class="container">
 			<div class="row">
 				<div class="col-sm-6 col-lg-3 p-b-50">
-					<h4 class="stext-301 cl0 p-b-30">
-						Categories
-					</h4>
-
-					<ul>
-						<li class="p-b-10">
-							<a href="#" class="stext-107 cl7 hov-cl1 trans-04">
-								Women
-							</a>
-						</li>
-
-						<li class="p-b-10">
-							<a href="#" class="stext-107 cl7 hov-cl1 trans-04">
-								Men
-							</a>
-						</li>
-
-						<li class="p-b-10">
-							<a href="#" class="stext-107 cl7 hov-cl1 trans-04">
-								Shoes
-							</a>
-						</li>
-
-						<li class="p-b-10">
-							<a href="#" class="stext-107 cl7 hov-cl1 trans-04">
-								Watches
-							</a>
-						</li>
-					</ul>
+					<h4 class="stext-301 cl0 p-b-30">Explore</h4>
+						<ul>
+							<li class="p-b-10"><a href="#events" class="stext-107 cl7 hov-cl1 trans-04">Events</a></li>
+							<li class="p-b-10"><a href="#about" class="stext-107 cl7 hov-cl1 trans-04">About</a></li>
+							<li class="p-b-10"><a href="#contact" class="stext-107 cl7 hov-cl1 trans-04">Contact</a></li>
+						</ul>
 				</div>
 
 				<div class="col-sm-6 col-lg-3 p-b-50">
@@ -467,7 +568,6 @@ $result_2 = $conn->query($sql_2);
 		</div>
 	</footer>
 
-
 	<!-- Back to top -->
 	<div class="btn-back-to-top" id="myBtn">
 		<span class="symbol-btn-back-to-top">
@@ -475,22 +575,37 @@ $result_2 = $conn->query($sql_2);
 		</span>
 	</div>
 
-	<!-- MODAL -->
-	<div class="wrap-modal1 js-modal1 p-t-60 p-b-20">
-    <div class="overlay-modal1 js-hide-modal1"></div>
-
-    <div class="container">
-        <div class="bg0 p-t-60 p-b-30 p-lr-15-lg how-pos3-parent">
-            <!-- زر إغلاق المودال -->
-            <button class="how-pos3 hov3 trans-04 js-hide-modal1">
-                <img src="images/icons/icon-close.png" alt="CLOSE">
-            </button>
-
-            <!-- iframe لعرض الصفحة داخل المودال -->
-            <iframe id="modalIframe" src="user_form.php" width="100%" height="500px" frameborder="0"></iframe>
-        </div>
-    </div>
-</div>
+	<!-- Event Login Modal -->
+	<div class="modal fade event-login-modal" id="eventLoginModal" tabindex="-1" aria-labelledby="eventLoginModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="eventLoginModalLabel">Enter Your Details</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<form id="event-login-form">
+						<input type="hidden" name="event_id" id="event_id">
+						<div class="mb-3">
+							<label for="user_name" class="form-label">Name</label>
+							<input type="text" class="form-control" id="user_name" name="user_name" required>
+						</div>
+						<div class="mb-3">
+							<label for="grade" class="form-label">Grade</label>
+							<select class="form-control" id="grade" name="grade" required>
+								<option value="">Select Grade</option>
+								<option value="First">First Year</option>
+								<option value="Second">Second Year</option>
+								<option value="Third">Third Year</option>
+								<option value="Fourth">Fourth Year</option>
+							</select>
+						</div>
+						<button type="submit" class="btn btn-primary w-100">Submit</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
 
 <!--===============================================================================================-->	
 	<script src="vendor/jquery/jquery-3.2.1.min.js"></script>
@@ -538,42 +653,6 @@ $result_2 = $conn->query($sql_2);
 	<script src="vendor/isotope/isotope.pkgd.min.js"></script>
 <!--===============================================================================================-->
 	<script src="vendor/sweetalert/sweetalert.min.js"></script>
-	<script>
-		$('.js-addwish-b2').on('click', function(e){
-			e.preventDefault();
-		});
-
-		$('.js-addwish-b2').each(function(){
-			var nameProduct = $(this).parent().parent().find('.js-name-b2').html();
-			$(this).on('click', function(){
-				swal(nameProduct, "is added to wishlist !", "success");
-
-				$(this).addClass('js-addedwish-b2');
-				$(this).off('click');
-			});
-		});
-
-		$('.js-addwish-detail').each(function(){
-			var nameProduct = $(this).parent().parent().parent().find('.js-name-detail').html();
-
-			$(this).on('click', function(){
-				swal(nameProduct, "is added to wishlist !", "success");
-
-				$(this).addClass('js-addedwish-detail');
-				$(this).off('click');
-			});
-		});
-
-		/*---------------------------------------------*/
-
-		$('.js-addcart-detail').each(function(){
-			var nameProduct = $(this).parent().parent().parent().parent().find('.js-name-detail').html();
-			$(this).on('click', function(){
-				swal(nameProduct, "is added to cart !", "success");
-			});
-		});
-	
-	</script>
 <!--===============================================================================================-->
 	<script src="vendor/perfect-scrollbar/perfect-scrollbar.min.js"></script>
 	<script>
@@ -592,7 +671,65 @@ $result_2 = $conn->query($sql_2);
 		});
 	</script>
 <!--===============================================================================================-->
+	<!-- Bootstrap 5 JS -->
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!--===============================================================================================-->
 	<script src="js/main.js"></script>
+<!--===============================================================================================-->
+	<script>
+		$(document).ready(function() {
+			$('[data-bs-toggle="modal"]').on('click', function(e) {
+				e.preventDefault();
+				var eventId = $(this).data('event-id');
+				console.log('Opening modal for eventId:', eventId);
+				$('#event_id').val(eventId);
+			});
 
+			$('#event-login-form').on('submit', function(e) {
+				e.preventDefault();
+				console.log('Submitting login form');
+				$.ajax({
+					url: 'save_user_info.php',
+					method: 'POST',
+					data: $(this).serialize(),
+					success: function(response) {
+						console.log('Save user info response:', response);
+						if (response === 'success') {
+							window.location.href = 'user_form.php?event_id=' + $('#event_id').val();
+						} else {
+							alert('Error saving user info: ' + response);
+						}
+					},
+					error: function() {
+						alert('An error occurred. Please try again.');
+					}
+				});
+			});
+		});
+	</script>
+<!--===============================================================================================-->
+	<script>
+		$(document).ready(function() {
+			$('#contact-form').on('submit', function(e) {
+				e.preventDefault();
+				$.ajax({
+					url: 'save_contact.php',
+					method: 'POST',
+					data: $(this).serialize(),
+					success: function(response) {
+						if (response === 'success') {
+							alert('Message sent successfully!');
+							$('#contact-form')[0].reset();
+						} else {
+							alert('Error: ' + response);
+						}
+					},
+					error: function() {
+						alert('An error occurred. Please try again.');
+					}
+				});
+			});
+		});
+	</script>
 </body>
 </html>

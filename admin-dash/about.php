@@ -15,20 +15,20 @@ if (!isset($_SESSION['admin_users'])) {
         $about_body = $_POST["about_body"];
 
         // رفع الصورة إلى السيرفر
-        $target_dir = "../about-img/"; // مسار النسبي داخل المشروع
+        $target_dir = "about-img/"; // مجلد حفظ الصور
+        $upload_dir = "../about-img/"; // المسار الكامل للرفع
         $image_name = basename($_FILES["about_image"]["name"]);
-        $target_file = $target_dir . $image_name;
-
-        // التحقق من امتداد الصورة
+        $target_file = $upload_dir . $image_name;
+        $db_file_path = $target_dir . $image_name; // المسار الذي سيحفظ في قاعدة البيانات
         $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif','HEIF'];
         $file_extension = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
 
         if (!in_array($file_extension, $allowed_extensions)) {
             echo "<script type='text/javascript'>alert('❌ نوع الملف غير مسموح به!');</script>";
         } elseif (move_uploaded_file($_FILES["about_image"]["tmp_name"], $target_file)) {
-            // حفظ بيانات القسم في قاعدة البيانات
+            // حفظ بيانات الحدث في قاعدة البيانات
             $stmt = $conn->prepare("INSERT INTO about (about_body, img_url, about_header) VALUES (?, ?, ?)");
-            $stmt->bind_param("sss", $about_body, $target_file, $about_header);
+            $stmt->bind_param("sss", $about_body, $db_file_path, $about_header);
 
             if ($stmt->execute()) {
                 echo "<script type='text/javascript'>alert('✅ تم إضافة القسم بنجاح!');</script>";
@@ -40,6 +40,7 @@ if (!isset($_SESSION['admin_users'])) {
         } else {
             echo "<script type='text/javascript'>alert('❌ فشل في رفع الصورة!');</script>";
         }
+
 
         $conn->close();
     }

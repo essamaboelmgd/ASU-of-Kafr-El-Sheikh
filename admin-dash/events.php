@@ -17,13 +17,20 @@ if (!isset($_SESSION['admin_users'])) {
         $event_type = $admin_users;
 
         // رفع الصورة إلى السيرفر
-        $target_dir = "../event-img/"; // مجلد حفظ الصور
-        $target_file = $target_dir . basename($_FILES["event_image"]["name"]);
-        
-        if (move_uploaded_file($_FILES["event_image"]["tmp_name"], $target_file)) {
+        $target_dir = "event-img/"; // مجلد حفظ الصور
+        $upload_dir = "../event-img/"; // المسار الكامل للرفع
+        $image_name = basename($_FILES["event_image"]["name"]);
+        $target_file = $upload_dir . $image_name;
+        $db_file_path = $target_dir . $image_name; // المسار الذي سيحفظ في قاعدة البيانات
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif','HEIF'];
+        $file_extension = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+
+        if (!in_array($file_extension, $allowed_extensions)) {
+            echo "<script type='text/javascript'>alert('❌ نوع الملف غير مسموح به!');</script>";
+        } elseif (move_uploaded_file($_FILES["event_image"]["tmp_name"], $target_file)) {
             // حفظ بيانات الحدث في قاعدة البيانات
             $stmt = $conn->prepare("INSERT INTO events (title, img_url, expiry_time, event_type) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("ssss", $title, $target_file, $expiry_time, $event_type);
+            $stmt->bind_param("ssss", $title, $db_file_path, $expiry_time, $event_type);
 
             if ($stmt->execute()) {
                 echo "<script type='text/javascript'>alert('✅ تم إضافة الحدث بنجاح!');</script>";
