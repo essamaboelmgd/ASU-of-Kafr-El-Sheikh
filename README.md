@@ -1,5 +1,5 @@
 <h1 align="center"> 📌 ASU Platform - Project Documentation </h1>
-## 🌟 Overview
+# 🌟Overview
 ASU Events Platform is a comprehensive university event management system that:
 
 Showcases upcoming university events (scientific, cultural, athletic, etc.)
